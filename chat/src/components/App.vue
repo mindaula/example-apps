@@ -346,6 +346,9 @@ module.exports = {
         this.isMobile = /Mobi|Android/i.test(navigator.userAgent); // https://stackoverflow.com/a/24600597;
         // live signals; kept out of data() as they change often and only signalTick needs to trigger a render
         this.signalStore = new Map();
+        // whether the Peergos this runs in has the signals API; older ones never answer those calls,
+        // so we only use it once a message shows the newer API (messages carry their utc time)
+        this.signalsSupported = null;
         this.verificationStore = new Map();
         this.signalLoops = new Set();
         this.lastTypingSent = 0;
@@ -583,6 +586,9 @@ module.exports = {
         },
         // --- whether we have compared safety numbers with the other members ---
         loadVerification: function(chatId) {
+            if (this.signalsSupported !== true) {
+                return;
+            }
             let that = this;
             this.verificationStore.set(chatId, this.verificationStore.get(chatId) || []);
             fetch('/peergos-api/v1/chat/' + chatId + '/members', { method: 'GET' }).then(function(response) {
@@ -695,7 +701,7 @@ module.exports = {
             return false;
         },
         startSignalLoops: function() {
-            if (this.closedChat) {
+            if (this.closedChat || this.signalsSupported !== true) {
                 return;
             }
             // the open chat, and the most recent ones, so new messages there show up straight away too
@@ -1608,6 +1614,9 @@ module.exports = {
                 return;
             }
             chat.hasFriendsInChat = response.hasFriendsInChat;
+            if (this.signalsSupported == null && response.messages.length > 0) {
+                this.signalsSupported = response.messages[0].utc !== undefined;
+            }
             this.updateMessageThread(response.chatId, response.messages);
             this.startSignalLoops();
             this.updateReceipts(response.chatId);
