@@ -17,6 +17,23 @@
                         <svg style="margin-bottom: -4px;" class="svg-toolbar-icon" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1088 1248v192q0 40-28 68t-68 28h-192q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h192q40 0 68 28t28 68zm0-512v192q0 40-28 68t-68 28h-192q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h192q40 0 68 28t28 68zm0-512v192q0 40-28 68t-68 28h-192q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h192q40 0 68 28t28 68z"/></svg>
                     </i>
                 </h3>
+                <div v-if="peerStatus().length > 0" class="chat-peer-status">{{ peerStatus() }}</div>
+                <div v-if="verificationNote().length > 0" :class="['chat-verification', 'chat-verification--' + verificationLevel()]">{{ verificationNote() }}</div>
+                <button v-if="selectedChatId != null" class="chat-signal-settings-btn" type="button" title="Typing, read receipts and last seen" @click.stop="showSignalSettings = !showSignalSettings">
+                    <svg class="inline-svg" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1152 896q0-106-75-181t-181-75-181 75-75 181 75 181 181 75 181-75 75-181zm512-109v222q0 12-8 23t-20 13l-185 28q-19 54-39 91 35 50 107 138 10 12 10 25t-9 23q-27 37-99 108t-94 71q-12 0-26-9l-138-108q-44 23-91 38-16 136-29 186-7 28-36 28h-222q-14 0-24.5-8.5t-11.5-21.5l-28-184q-49-16-90-37l-141 107q-10 9-25 9-14 0-25-11-126-114-165-168-7-10-7-23 0-12 8-23 15-21 51-66.5t54-70.5q-27-50-41-99l-183-27q-13-2-21-12.5t-8-23.5v-222q0-12 8-23t19-13l186-28q14-46 39-92-40-57-107-138-10-12-10-24 0-10 9-23 26-36 98.5-107.5t94.5-71.5q13 0 26 10l138 107q44-23 91-38 16-136 29-186 7-28 36-28h222q14 0 24.5 8.5t11.5 21.5l28 184q49 16 90 37l142-107q9-9 24-9 13 0 25 10 129 119 165 170 7 8 7 22 0 12-8 23-15 21-51 66.5t-54 70.5q26 50 41 98l183 28q13 2 21 12.5t8 23.5z"/></svg>
+                </button>
+                <div v-if="showSignalSettings" class="chat-signal-settings" @click.stop>
+                    <label><input type="checkbox" v-model="signalSettings.typing" @change="saveSignalSettings()"> Show when I'm typing, and when others are</label>
+                    <label><input type="checkbox" v-model="signalSettings.receipts" @change="saveSignalSettings()"> Send read receipts, and see others'</label>
+                    <label>Last seen and online, visible to
+                        <select v-model="signalSettings.lastSeen" @change="saveSignalSettings()">
+                            <option value="all">everyone in my chats</option>
+                            <option value="nobody">nobody</option>
+                        </select>
+                    </label>
+                    <label v-if="signalSettings.lastSeen == 'all'"><input type="checkbox" :checked="isLastSeenHidden(selectedChatId)" @change="toggleLastSeenHidden(selectedChatId)"> Hide my last seen in this chat</label>
+                    <p class="chat-signal-settings-note">If you turn something off, you won't see it from others either.</p>
+                </div>
             </span>
         </div>
         <confirm
@@ -167,7 +184,7 @@
                                                     <span v-if="message.sendTime.length > 0" class="chat-message-info">
                                                         <i @click="reply(message)" style="cursor: pointer">
                                                             <svg class="inline-svg" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 1120q0 166-127 451-3 7-10.5 24t-13.5 30-13 22q-12 17-28 17-15 0-23.5-10t-8.5-25q0-9 2.5-26.5t2.5-23.5q5-68 5-123 0-101-17.5-181t-48.5-138.5-80-101-105.5-69.5-133-42.5-154-21.5-175.5-6h-224v256q0 26-19 45t-45 19-45-19l-512-512q-19-19-19-45t19-45l512-512q19-19 45-19t45 19 19 45v256h224q713 0 875 403 53 134 53 333z"/></svg>
-                                                        </i> <b>|</b> {{message.sender}} <b>|</b>  {{message.sendTime}} <b v-if="!message.deleted">|</b>
+                                                        </i> <b>|</b> {{message.sender}} <b>|</b>  {{message.sendTime}} <span v-if="tickState(message).length > 0" :class="['msg-ticks', 'msg-ticks--' + tickState(message)]" :title="tickTitle(message)"><svg class="msg-tick" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><polygon class="msg-tick-x" points="3,1 8,6 13,1 15,3 10,8 15,13 13,15 8,10 3,15 1,13 6,8 1,3"/></svg><svg v-if="tickState(message) != 'sent'" class="msg-tick" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><polygon class="msg-tick-x" points="3,1 8,6 13,1 15,3 10,8 15,13 13,15 8,10 3,15 1,13 6,8 1,3"/></svg></span> <b v-if="!message.deleted">|</b>
                                                         <i v-if="!message.deleted" @click="edit(message)" style="cursor: pointer">
                                                             <svg class="inline-svg" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M888 1184l116-116-152-152-116 116v56h96v96h56zm440-720q-16-16-33 1l-350 350q-17 17-1 33t33-1l350-350q17-17 1-33zm80 594v190q0 119-84.5 203.5t-203.5 84.5h-832q-119 0-203.5-84.5t-84.5-203.5v-832q0-119 84.5-203.5t203.5-84.5h832q63 0 117 25 15 7 18 23 3 17-9 29l-49 49q-14 14-32 8-23-6-45-6h-832q-66 0-113 47t-47 113v832q0 66 47 113t113 47h832q66 0 113-47t47-113v-126q0-13 9-22l64-64q15-15 35-7t20 29zm-96-738l288 288-672 672h-288v-288zm444 132l-92 92-288-288 92-92q28-28 68-28t68 28l152 152q28 28 28 68t-28 68z"/></svg>
                                                         </i> <b v-if="!message.deleted">|</b>
@@ -264,7 +281,7 @@
                                                             <span v-if="message.sendTime.length > 0" class="chat-message-info">
                                                             <i @click="reply(message)" style="cursor: pointer">
                                                                 <svg class="inline-svg" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 1120q0 166-127 451-3 7-10.5 24t-13.5 30-13 22q-12 17-28 17-15 0-23.5-10t-8.5-25q0-9 2.5-26.5t2.5-23.5q5-68 5-123 0-101-17.5-181t-48.5-138.5-80-101-105.5-69.5-133-42.5-154-21.5-175.5-6h-224v256q0 26-19 45t-45 19-45-19l-512-512q-19-19-19-45t19-45l512-512q19-19 45-19t45 19 19 45v256h224q713 0 875 403 53 134 53 333z"/></svg>
-                                                            </i> <b>|</b> {{message.sender}} <b>|</b>  {{message.sendTime}} <b v-if="!message.deleted">|</b>
+                                                            </i> <b>|</b> {{message.sender}} <b>|</b>  {{message.sendTime}} <span v-if="tickState(message).length > 0" :class="['msg-ticks', 'msg-ticks--' + tickState(message)]" :title="tickTitle(message)"><svg class="msg-tick" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><polygon class="msg-tick-x" points="3,1 8,6 13,1 15,3 10,8 15,13 13,15 8,10 3,15 1,13 6,8 1,3"/></svg><svg v-if="tickState(message) != 'sent'" class="msg-tick" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><polygon class="msg-tick-x" points="3,1 8,6 13,1 15,3 10,8 15,13 13,15 8,10 3,15 1,13 6,8 1,3"/></svg></span> <b v-if="!message.deleted">|</b>
                                                             <i v-if="!message.deleted" @click="edit(message)" style="cursor: pointer">
                                                                 <svg class="inline-svg" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M888 1184l116-116-152-152-116 116v56h96v96h56zm440-720q-16-16-33 1l-350 350q-17 17-1 33t33-1l350-350q17-17 1-33zm80 594v190q0 119-84.5 203.5t-203.5 84.5h-832q-119 0-203.5-84.5t-84.5-203.5v-832q0-119 84.5-203.5t203.5-84.5h832q63 0 117 25 15 7 18 23 3 17-9 29l-49 49q-14 14-32 8-23-6-45-6h-832q-66 0-113 47t-47 113v832q0 66 47 113t113 47h832q66 0 113-47t47-113v-126q0-13 9-22l64-64q15-15 35-7t20 29zm-96-738l288 288-672 672h-288v-288zm444 132l-92 92-288-288 92-92q28-28 68-28t68 28l152 152q28 28 28 68t-28 68z"/></svg>
                                                             </i> <b v-if="!message.deleted">|</b>
@@ -323,9 +340,10 @@
                                     </div>
                                 </div>
                                 <div id="new-message-id" class="new-message-container chat-hide">
+                                    <div v-if="typingText().length > 0" class="typing-indicator">{{ typingText() }} <span class="typing-dots"><i></i><i></i><i></i></span></div>
                                     <div class="new-message">
                                         <span>
-                                            <textarea id='message-input' rows="1" v-model="newMessageText"  v-on:keyup.enter="send()" placeholder="Type a message" class="prevent-resize"  @input="checkMessageLength"></textarea>
+                                            <textarea id='message-input' rows="1" v-model="newMessageText"  v-on:keyup.enter="send()" placeholder="Type a message" class="prevent-resize"  @input="checkMessageLength($event); onTyping()"></textarea>
                                         </span>
                                         <div>
                                             <span>
@@ -403,6 +421,10 @@ module.exports = {
             completedInit: false,
             initialChatId: null,
             isMobile: false,
+            showSignalSettings: false,
+            signalSettings: {typing: true, receipts: true, lastSeen: 'all', hiddenChats: []},
+            signalTick: 0,
+            nowMillis: Date.now(),
 		};
 	},
 	computed: {
@@ -419,6 +441,16 @@ module.exports = {
         this.initialChatId = url.searchParams.get("chatId");
 
         this.isMobile = /Mobi|Android/i.test(navigator.userAgent); // https://stackoverflow.com/a/24600597;
+        // live signals; kept out of data() as they change often and only signalTick needs to trigger a render
+        this.signalStore = new Map();
+        this.verificationStore = new Map();
+        this.signalLoops = new Set();
+        this.lastTypingSent = 0;
+        this.typingChatId = null;
+        this.typingStopTimer = null;
+        this.loadSignalSettings();
+        document.addEventListener("visibilitychange", this.onVisibilityChange);
+        this.signalTimer = setInterval(() => that.onSignalTimer(), 1000);
 
         this.init();
         Vue.nextTick(function() {
@@ -546,6 +578,401 @@ module.exports = {
             if (type == 'zip') 	return 'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB3aWR0aD0iMTc5MiIgaGVpZ2h0PSIxNzkyIiB2aWV3Qm94PSIwIDAgMTc5MiAxNzkyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik03NjggMzg0di0xMjhoLTEyOHYxMjhoMTI4em0xMjggMTI4di0xMjhoLTEyOHYxMjhoMTI4em0tMTI4IDEyOHYtMTI4aC0xMjh2MTI4aDEyOHptMTI4IDEyOHYtMTI4aC0xMjh2MTI4aDEyOHptNzAwLTM4OHEyOCAyOCA0OCA3NnQyMCA4OHYxMTUycTAgNDAtMjggNjh0LTY4IDI4aC0xMzQ0cS00MCAwLTY4LTI4dC0yOC02OHYtMTYwMHEwLTQwIDI4LTY4dDY4LTI4aDg5NnE0MCAwIDg4IDIwdDc2IDQ4em0tNDQ0LTI0NHYzNzZoMzc2cS0xMC0yOS0yMi00MWwtMzEzLTMxM3EtMTItMTItNDEtMjJ6bTM4NCAxNTI4di0xMDI0aC00MTZxLTQwIDAtNjgtMjh0LTI4LTY4di00MTZoLTEyOHYxMjhoLTEyOHYtMTI4aC01MTJ2MTUzNmgxMjgwem0tNjI3LTcyMWwxMDcgMzQ5cTggMjcgOCA1MiAwIDgzLTcyLjUgMTM3LjV0LTE4My41IDU0LjUtMTgzLjUtNTQuNS03Mi41LTEzNy41cTAtMjUgOC01MiAyMS02MyAxMjAtMzk2di0xMjhoMTI4djEyOGg3OXEyMiAwIDM5IDEzdDIzIDM0em0tMTQxIDQ2NXE1MyAwIDkwLjUtMTl0MzcuNS00NS0zNy41LTQ1LTkwLjUtMTktOTAuNSAxOS0zNy41IDQ1IDM3LjUgNDUgOTAuNSAxOXoiLz48L3N2Zz4';
             return 'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB3aWR0aD0iMTc5MiIgaGVpZ2h0PSIxNzkyIiB2aWV3Qm94PSIwIDAgMTc5MiAxNzkyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0xNTk2IDM4MHEyOCAyOCA0OCA3NnQyMCA4OHYxMTUycTAgNDAtMjggNjh0LTY4IDI4aC0xMzQ0cS00MCAwLTY4LTI4dC0yOC02OHYtMTYwMHEwLTQwIDI4LTY4dDY4LTI4aDg5NnE0MCAwIDg4IDIwdDc2IDQ4em0tNDQ0LTI0NHYzNzZoMzc2cS0xMC0yOS0yMi00MWwtMzEzLTMxM3EtMTItMTItNDEtMjJ6bTM4NCAxNTI4di0xMDI0aC00MTZxLTQwIDAtNjgtMjh0LTI4LTY4di00MTZoLTc2OHYxNTM2aDEyODB6Ii8+PC9zdmc+';
         },
+        // --- whether we have compared safety numbers with the other members ---
+        loadVerification: function(chatId) {
+            let that = this;
+            this.verificationStore.set(chatId, this.verificationStore.get(chatId) || []);
+            fetch('/peergos-api/v1/chat/' + chatId + '/members', { method: 'GET' }).then(function(response) {
+                if (response.status !== 200) {
+                    throw new Error("members unavailable: " + response.status);
+                }
+                return response.arrayBuffer();
+            }).then(function(buffer) {
+                that.verificationStore.set(chatId, JSON.parse(new TextDecoder().decode(buffer)));
+                that.signalTick++;
+            }).catch(e => {});
+        },
+        verificationLevel: function() {
+            this.signalTick;
+            let members = this.selectedChatId == null ? null : this.verificationStore.get(this.selectedChatId);
+            if (members == null || members.length == 0) {
+                return "";
+            }
+            if (members.some(m => m.verification == 'changed')) {
+                return "changed";
+            }
+            if (members.some(m => m.verification != 'verified')) {
+                return "unverified";
+            }
+            return "verified";
+        },
+        verificationNote: function() {
+            let level = this.verificationLevel();
+            let members = level.length == 0 ? [] : this.verificationStore.get(this.selectedChatId);
+            if (level == "changed") {
+                let names = members.filter(m => m.verification == 'changed').map(m => m.username).join(", ");
+                return "Keys of " + names + " changed since you verified them. Compare safety numbers again (Friends > Verification) before sharing anything sensitive.";
+            }
+            if (level == "unverified") {
+                let names = members.filter(m => m.verification != 'verified').map(m => m.username).join(", ");
+                return "Safety numbers not compared with " + names + " (Friends > Verification)";
+            }
+            return "";
+        },
+        // --- live signals: typing, presence and read receipts, via /peergos-api/v1/chat/<chatId>/signals ---
+        loadSignalSettings: function() {
+            try {
+                let saved = JSON.parse(window.localStorage.getItem("chat-signal-settings"));
+                if (saved != null) {
+                    this.signalSettings = {typing: saved.typing !== false, receipts: saved.receipts !== false,
+                        lastSeen: saved.lastSeen == 'nobody' ? 'nobody' : 'all',
+                        hiddenChats: Array.isArray(saved.hiddenChats) ? saved.hiddenChats : []};
+                }
+            } catch (e) {}
+        },
+        saveSignalSettings: function() {
+            try {
+                window.localStorage.setItem("chat-signal-settings", JSON.stringify(this.signalSettings));
+            } catch (e) {}
+            if (!this.signalSettings.typing) {
+                this.resetTyping();
+            }
+            // going invisible should take effect now, not at the next presence update
+            this.sendPresence(document.visibilityState == 'visible' ? 'online' : 'away', true);
+            this.signalTick++;
+        },
+        isLastSeenHidden: function(chatId) {
+            return this.signalSettings.hiddenChats.indexOf(chatId) > -1;
+        },
+        toggleLastSeenHidden: function(chatId) {
+            let index = this.signalSettings.hiddenChats.indexOf(chatId);
+            if (index > -1) {
+                this.signalSettings.hiddenChats.splice(index, 1);
+            } else {
+                this.signalSettings.hiddenChats.push(chatId);
+            }
+            this.saveSignalSettings();
+        },
+        lastSeenAllowed: function(chatId) {
+            return this.signalSettings.lastSeen == 'all' && !this.isLastSeenHidden(chatId);
+        },
+        chatSignals: function(chatId) {
+            let state = this.signalStore.get(chatId);
+            if (state == null) {
+                state = {next: "0", enabled: false, failures: 0, triedEnabling: false, members: {},
+                    sentDelivered: "", sentRead: "", sentPresence: 0, epoch: ""};
+                try {
+                    let sent = JSON.parse(window.localStorage.getItem("chat-receipts-" + chatId));
+                    if (sent != null) {
+                        state.epoch = sent.epoch || "";
+                        state.sentDelivered = sent.delivered || "";
+                        state.sentRead = sent.read || "";
+                    }
+                } catch (e) {}
+                this.signalStore.set(chatId, state);
+            }
+            return state;
+        },
+        memberSignals: function(chatId, username) {
+            let state = this.chatSignals(chatId);
+            let member = state.members[username];
+            if (member == null) {
+                member = {typingUntil: 0, presence: "", presenceTime: 0, delivered: "", read: ""};
+                state.members[username] = member;
+            }
+            return member;
+        },
+        hasLiveSignals: function() {
+            for (let state of this.signalStore.values()) {
+                if (state.enabled) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        startSignalLoops: function() {
+            if (this.closedChat) {
+                return;
+            }
+            // the open chat, and the most recent ones, so new messages there show up straight away too
+            let wanted = this.conversations.slice(0, 6).map(c => c.chatId);
+            if (this.selectedChatId != null && wanted.indexOf(this.selectedChatId) == -1) {
+                wanted.push(this.selectedChatId);
+            }
+            let that = this;
+            wanted.forEach(chatId => {
+                if (!that.signalLoops.has(chatId) && that.allChats.get(chatId) != null && !that.allChats.get(chatId).readonly) {
+                    that.signalLoops.add(chatId);
+                    that.signalLoop(chatId);
+                }
+            });
+        },
+        signalLoop: function(chatId) {
+            if (this.closedChat || !this.signalLoops.has(chatId)) {
+                return;
+            }
+            let that = this;
+            let state = this.chatSignals(chatId);
+            // the first poll returns at once, to learn whether the chat has signals and catch up on them
+            let wait = state.polled ? 25000 : 0;
+            fetch('/peergos-api/v1/chat/' + chatId + '/signals?since=' + state.next + '&wait=' + wait, { method: 'GET' }).then(function(response) {
+                if (response.status !== 200) {
+                    throw new Error("signals unavailable: " + response.status);
+                }
+                return response.arrayBuffer();
+            }).then(function(buffer) {
+                let res = JSON.parse(new TextDecoder().decode(buffer));
+                state.failures = 0;
+                state.polled = true;
+                let wasEnabled = state.enabled;
+                state.enabled = res.enabled;
+                state.next = res.next;
+                if (res.epoch != null && res.epoch != state.epoch) {
+                    // a new day's channel starts empty: send our receipts and presence again
+                    state.epoch = res.epoch;
+                    state.sentDelivered = "";
+                    state.sentRead = "";
+                    state.sentPresence = 0;
+                    wasEnabled = false;
+                }
+                res.signals.forEach(signal => that.applySignal(chatId, signal));
+                if (!res.enabled) {
+                    that.enableSignals(chatId);
+                } else if (!wasEnabled) {
+                    that.sendPresence('online', true);
+                    that.updateReceipts(chatId);
+                }
+                // without a key yet, look again after the next refresh has merged the others' messages
+                setTimeout(() => that.signalLoop(chatId), res.enabled ? 0 : 10000);
+            }).catch(function(e) {
+                state.failures++;
+                setTimeout(() => that.signalLoop(chatId), Math.min(60000, 2000 * state.failures));
+            });
+        },
+        enableSignals: function(chatId) {
+            let state = this.chatSignals(chatId);
+            let chat = this.allChats.get(chatId);
+            if (state.triedEnabling || chat == null || chat.readonly) {
+                return;
+            }
+            state.triedEnabling = true;
+            let bytes = new TextEncoder().encode(JSON.stringify({enableSignals: true}));
+            fetch('/peergos-api/v1/chat/' + chatId, { method: 'PUT', body: bytes }).catch(e => {});
+        },
+        applySignal: function(chatId, signal) {
+            let member = this.memberSignals(chatId, signal.author);
+            let time = Number(signal.time);
+            if (signal.type == 'typing') {
+                member.typingUntil = Date.now() + 8000;
+            } else if (signal.type == 'stopped') {
+                member.typingUntil = 0;
+            } else if (signal.type == 'updated') {
+                member.typingUntil = 0;
+                this.retrieveChatMessages(chatId, false);
+            } else if (signal.type == 'presence') {
+                if (time >= member.presenceTime) {
+                    member.presenceTime = time;
+                    member.presence = signal.value;
+                }
+            } else if (signal.type == 'delivered') {
+                if (signal.value > member.delivered) {
+                    member.delivered = signal.value;
+                }
+            } else if (signal.type == 'read') {
+                if (signal.value > member.read) {
+                    member.read = signal.value;
+                }
+                if (signal.value > member.delivered) {
+                    member.delivered = signal.value;
+                }
+            }
+            this.nowMillis = Date.now();
+            this.signalTick++;
+        },
+        sendSignal: function(chatId, type, value) {
+            if (!this.chatSignals(chatId).enabled) {
+                return;
+            }
+            let bytes = new TextEncoder().encode(JSON.stringify({signal: {type: type, value: value}}));
+            fetch('/peergos-api/v1/chat/' + chatId, { method: 'PUT', body: bytes }).catch(e => {});
+        },
+        onTyping: function() {
+            let chatId = this.selectedChatId;
+            if (!this.signalSettings.typing || chatId == null || this.newMessageText.length == 0) {
+                return;
+            }
+            let now = Date.now();
+            if (now - this.lastTypingSent > 4000 || this.typingChatId != chatId) {
+                this.lastTypingSent = now;
+                this.typingChatId = chatId;
+                this.sendSignal(chatId, 'typing', '');
+            }
+            let that = this;
+            clearTimeout(this.typingStopTimer);
+            this.typingStopTimer = setTimeout(() => that.stopTyping(), 5000);
+        },
+        stopTyping: function() {
+            if (this.typingChatId != null) {
+                this.sendSignal(this.typingChatId, 'stopped', '');
+            }
+            this.resetTyping();
+        },
+        resetTyping: function() {
+            clearTimeout(this.typingStopTimer);
+            this.lastTypingSent = 0;
+            this.typingChatId = null;
+        },
+        sendPresence: function(value, force) {
+            let now = Date.now();
+            let that = this;
+            this.signalLoops.forEach(chatId => {
+                let state = that.chatSignals(chatId);
+                if (!state.enabled) {
+                    return;
+                }
+                if (!force && now - state.sentPresence < 60000) {
+                    return;
+                }
+                state.sentPresence = now;
+                // hidden: tell them nothing new, rather than something false
+                that.sendSignal(chatId, 'presence', that.lastSeenAllowed(chatId) ? value : 'hidden');
+            });
+        },
+        onVisibilityChange: function() {
+            if (document.visibilityState == 'visible') {
+                this.sendPresence('online', true);
+                if (this.selectedChatId != null) {
+                    this.updateReceipts(this.selectedChatId);
+                }
+            } else {
+                this.stopTyping();
+                this.sendPresence('away', true);
+            }
+        },
+        onSignalTimer: function() {
+            let now = Date.now();
+            if (document.visibilityState == 'visible') {
+                this.sendPresence('online', false);
+            }
+            // re-render for typing that runs out, and every so often for "last seen"
+            if (this.typingText().length > 0 || now - this.nowMillis > 30000) {
+                this.nowMillis = now;
+            }
+        },
+        isViewingChat: function(chatId) {
+            return chatId == this.selectedChatId && document.visibilityState == 'visible'
+                && (window.innerWidth >= 900 || this.displayingMessages);
+        },
+        latestFromOthers: function(chatId) {
+            let thread = this.allMessageThreads.get(chatId);
+            let latest = "";
+            if (thread == null) {
+                return latest;
+            }
+            for (var i = 0; i < thread.length; i++) {
+                let message = thread[i];
+                if (!message.isStatusMsg && message.sender != this.username && message.utc != null && message.utc > latest) {
+                    latest = message.utc;
+                }
+            }
+            return latest;
+        },
+        updateReceipts: function(chatId) {
+            let state = this.chatSignals(chatId);
+            if (!state.enabled) {
+                return;
+            }
+            let latest = this.latestFromOthers(chatId);
+            if (latest.length == 0) {
+                return;
+            }
+            let changed = false;
+            if (latest > state.sentDelivered) {
+                state.sentDelivered = latest;
+                this.sendSignal(chatId, 'delivered', latest);
+                changed = true;
+            }
+            if (this.signalSettings.receipts && this.isViewingChat(chatId) && latest > state.sentRead) {
+                state.sentRead = latest;
+                this.sendSignal(chatId, 'read', latest);
+                changed = true;
+            }
+            if (changed) {
+                try {
+                    window.localStorage.setItem("chat-receipts-" + chatId, JSON.stringify({epoch: state.epoch, delivered: state.sentDelivered, read: state.sentRead}));
+                } catch (e) {}
+            }
+        },
+        tickState: function(message) {
+            this.signalTick; // re-render when signals arrive
+            if (message.utc == null || message.deleted || this.selectedChatId == null) {
+                return "";
+            }
+            let chat = this.allChats.get(this.selectedChatId);
+            let state = this.signalStore.get(this.selectedChatId);
+            if (chat == null || state == null || !state.enabled || chat.otherMembers.length == 0) {
+                return "";
+            }
+            let everyone = field => chat.otherMembers.every(username => {
+                let member = state.members[username];
+                return member != null && member[field] >= message.utc;
+            });
+            if (this.signalSettings.receipts && everyone('read')) {
+                return "read";
+            }
+            if (everyone('delivered')) {
+                return "delivered";
+            }
+            return "sent";
+        },
+        tickTitle: function(message) {
+            let state = this.tickState(message);
+            return state == "read" ? "Read" : state == "delivered" ? "Delivered" : "Sent";
+        },
+        typingText: function() {
+            this.signalTick;
+            this.nowMillis;
+            if (!this.signalSettings.typing || this.selectedChatId == null) {
+                return "";
+            }
+            let state = this.signalStore.get(this.selectedChatId);
+            if (state == null) {
+                return "";
+            }
+            let now = Date.now();
+            let typing = Object.keys(state.members).filter(username => state.members[username].typingUntil > now);
+            if (typing.length == 0) {
+                return "";
+            }
+            return typing.join(", ") + (typing.length == 1 ? " is typing" : " are typing");
+        },
+        peerStatus: function() {
+            this.signalTick;
+            this.nowMillis;
+            // you only see others' last seen while you show yours
+            if (this.selectedChatId == null || !this.lastSeenAllowed(this.selectedChatId)) {
+                return "";
+            }
+            let chat = this.allChats.get(this.selectedChatId);
+            let state = this.signalStore.get(this.selectedChatId);
+            if (chat == null || state == null || chat.otherMembers.length != 1) {
+                return "";
+            }
+            let member = state.members[chat.otherMembers[0]];
+            if (member == null || member.presenceTime == 0 || member.presence == 'hidden') {
+                return "";
+            }
+            if (member.presence == 'online' && Date.now() - member.presenceTime < 90000) {
+                return "online";
+            }
+            let seen = new Date(member.presenceTime);
+            let today = new Date();
+            let time = (seen.getHours() < 10 ? '0' : '') + seen.getHours() + ':' + (seen.getMinutes() < 10 ? '0' : '') + seen.getMinutes();
+            if (seen.toDateString() == today.toDateString()) {
+                return "last seen today at " + time;
+            }
+            return "last seen " + seen.getFullYear() + '-' + (seen.getMonth() + 1) + '-' + seen.getDate() + ' ' + time;
+        },
         checkMessageLength: function(e) {
             let newMessageValue = e.target.value;
             if (newMessageValue.length > this.newMessageMaxLength) {
@@ -656,6 +1083,9 @@ module.exports = {
             this.buildMessageThread(conversation.chatId);
             this.updateScrollPane();
             this.checkChatState(conversation);
+            this.startSignalLoops();
+            this.updateReceipts(conversation.chatId);
+            this.loadVerification(conversation.chatId);
         },
         loadConversationIcons: function(chats) {
             for(var index = 0; index < chats.length; index++) {
@@ -955,7 +1385,7 @@ module.exports = {
                     }
                 } else if(message.type == 'Application') {
                     let contents = message.text;
-                    let appMsg = this.createMessage(message.author, message.envelope, contents, message.attachments, null, message.messageRef, message.timestamp);
+                    let appMsg = this.createMessage(message.author, message.envelope, contents, message.attachments, null, message.messageRef, message.timestamp, message.utc);
                     let appMsgKey = this.msgKey(appMsg);
                     let draftMessageIndex = this.draftMessages.findIndex(v => v.key == appMsgKey);
                     if (draftMessageIndex > -1) {
@@ -985,7 +1415,7 @@ module.exports = {
                 } else if(message.type == 'ReplyTo') {
                     let messageIndex = hashToIndex.get(message.replyToParent);
                     let parentMessage = messageThread[messageIndex];
-                    let appMsg = this.createMessage(message.author, message.envelope, message.text, message.attachments, parentMessage, message.messageRef, message.timestamp);
+                    let appMsg = this.createMessage(message.author, message.envelope, message.text, message.attachments, parentMessage, message.messageRef, message.timestamp, message.utc);
                     let appMsgKey = this.msgKey(appMsg);
                     let draftMessageIndex = this.draftMessages.findIndex(v => v.key == appMsgKey);
                     if (draftMessageIndex > -1) {
@@ -1043,7 +1473,7 @@ module.exports = {
                     that.init();
                 }
             };
-            setTimeout(intervalFunc, 1000 * 10);
+            setTimeout(intervalFunc, 1000 * (this.hasLiveSignals() ? 30 : 10));
         },
         executeInit: function() {
             let future = app.shared.util.Futures.incomplete();
@@ -1157,6 +1587,11 @@ module.exports = {
             }
             chat.hasFriendsInChat = response.hasFriendsInChat;
             this.updateMessageThread(response.chatId, response.messages);
+            this.startSignalLoops();
+            this.updateReceipts(response.chatId);
+            if (response.chatId == this.selectedChatId && !this.verificationStore.has(response.chatId)) {
+                this.loadVerification(response.chatId);
+            }
             if (response.chatId == this.selectedChatId) {
                 this.buildMessageThread(response.chatId);
                 this.buildConversations();
@@ -1238,6 +1673,9 @@ module.exports = {
                 }
             }
             window.removeEventListener("resize", this.resizeHandler);
+            document.removeEventListener("visibilitychange", this.onVisibilityChange);
+            clearInterval(this.signalTimer);
+            this.signalLoops.clear();
         },
         truncateText: function(text, length) {
         	if (text == null) {
@@ -1382,6 +1820,8 @@ module.exports = {
         },
         send: function() {
             let that = this;
+            // the message itself tells the others we stopped typing
+            this.resetTyping();
             var text = this.newMessageText;
             that.newMessageText = "";
             while (text.endsWith("\n")) {
@@ -1490,7 +1930,7 @@ module.exports = {
             this.buildMessageThread(chatId);
             this.updateScrollPane();
         },
-        createMessage: function(author, serialised, contents, attachments, parentMessage, messageRef, timestamp) {
+        createMessage: function(author, serialised, contents, attachments, parentMessage, messageRef, timestamp, utc) {
             let mediaFiles = [];
             attachments.forEach (function(mediaFile) {
                 let fileType = mediaFile.fileType;
@@ -1500,7 +1940,7 @@ module.exports = {
             });
             let entry = {isStatusMsg: false, mediaFiles: mediaFiles,
                 sender: author, sendTime: timestamp, contents: contents
-                , serialised: serialised, parentMessage: parentMessage, edited: false, deleted : false, messageRef: messageRef};
+                , serialised: serialised, parentMessage: parentMessage, edited: false, deleted : false, messageRef: messageRef, utc: utc};
             return entry;
         },
         createStatusMessage: function(timestamp, message) {
@@ -1520,6 +1960,113 @@ module.exports = {
 }
 </script>
 <style>
+
+.modal-container > .header {
+    position: relative;
+}
+.chat-verification {
+    text-align: center;
+    font-size: 0.8em;
+    margin: 2px 40px 0;
+    opacity: 0.75;
+}
+.chat-verification--changed {
+    opacity: 1;
+    font-weight: bold;
+    color: #b3261e;
+}
+.chat-peer-status {
+    text-align: center;
+    font-size: 0.85em;
+    opacity: 0.75;
+    margin-top: -6px;
+}
+.chat-signal-settings-btn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+}
+.chat-signal-settings {
+    position: absolute;
+    right: 10px;
+    top: 40px;
+    z-index: 3000;
+    max-width: 320px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+    text-align: left;
+}
+.chat-signal-settings label {
+    display: block;
+    font-weight: normal;
+    margin: 6px 0;
+}
+.chat-signal-settings-note {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin: 8px 0 0;
+}
+.new-message-container {
+    position: relative;
+}
+.typing-indicator {
+    position: absolute;
+    bottom: 100%;
+    left: 8px;
+    background: #fff;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-style: italic;
+    opacity: 0.8;
+    padding: 2px 12px;
+}
+.typing-dots i {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin: 0 1px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: typing-dot 1.2s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing-dots i:nth-child(3) {
+    animation-delay: 0.4s;
+}
+@keyframes typing-dot {
+    0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+}
+/* one mark: sent, two: delivered, filled: read. */
+.msg-ticks {
+    display: inline-flex;
+    vertical-align: middle;
+    gap: 1px;
+    color: #000;
+}
+.msg-tick {
+    width: 14px;
+    height: 14px;
+}
+.msg-tick-x {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    opacity: 0.55;
+}
+.msg-ticks--read .msg-tick-x {
+    fill: currentColor;
+    opacity: 1;
+}
 .modal-mask {
   position: fixed;
   z-index: 2500;
