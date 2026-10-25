@@ -881,7 +881,7 @@ module.exports = {
         },
         isNoLongerPartOfChat: function(chat) {
             return (chat.members.findIndex(v => v === this.username) == -1 || chat.members.length == 0)
-                || (chat.members.findIndex(v => v === this.username) == 0 || chat.members.length == 1);
+                || (chat.members.findIndex(v => v === this.username) == 0 && chat.members.length == 1);
         },
         isAdminOfEmptyChat: function(chat) {
             return chat.members.findIndex(v => v === this.username) == 0
