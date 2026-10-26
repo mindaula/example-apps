@@ -741,6 +741,16 @@ module.exports = {
                         state.sentDelivered = sent.delivered || "";
                         state.sentRead = sent.read || "";
                     }
+                    // what the others last confirmed, so their marks and last seen survive a reload and the
+                    // empty channel of a new day, until they send theirs again
+                    let known = JSON.parse(window.localStorage.getItem("chat-members-" + chatId));
+                    if (known != null && typeof known == "object") {
+                        Object.keys(known).forEach(username => {
+                            let k = known[username] || {};
+                            state.members[username] = {typingUntil: 0, presence: String(k.presence || ""),
+                                presenceTime: Number(k.presenceTime) || 0, delivered: String(k.delivered || ""), read: String(k.read || "")};
+                        });
+                    }
                 } catch (e) {}
                 this.signalStore.set(chatId, state);
             }
@@ -859,8 +869,29 @@ module.exports = {
                     member.delivered = signal.value;
                 }
             }
+            if (signal.type == 'presence' || signal.type == 'delivered' || signal.type == 'read') {
+                this.saveMemberSignals(chatId);
+            }
             this.nowMillis = Date.now();
             this.signalTick++;
+        },
+        // written a moment later, so a burst of signals is one write
+        saveMemberSignals: function(chatId) {
+            let state = this.chatSignals(chatId);
+            if (state.saveTimer != null) {
+                return;
+            }
+            state.saveTimer = setTimeout(() => {
+                state.saveTimer = null;
+                let known = {};
+                Object.keys(state.members).forEach(username => {
+                    let m = state.members[username];
+                    known[username] = {presence: m.presence, presenceTime: m.presenceTime, delivered: m.delivered, read: m.read};
+                });
+                try {
+                    window.localStorage.setItem("chat-members-" + chatId, JSON.stringify(known));
+                } catch (e) {}
+            }, 2000);
         },
         sendSignal: function(chatId, type, value) {
             if (!this.chatSignals(chatId).enabled) {
@@ -1784,6 +1815,7 @@ module.exports = {
                             try {
                                 window.localStorage.removeItem("chat-hidden-" + chatId);
                                 window.localStorage.removeItem("chat-receipts-" + chatId);
+                                window.localStorage.removeItem("chat-members-" + chatId);
                             } catch (e) {}
                             if (chatId == that.selectedChatId) {
                                 that.selectedChatId = null;
